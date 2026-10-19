@@ -1,3 +1,4 @@
+ORPHEUS 1.8.0 - Profile tab (picture, name, Google sign-in); client ID built in so nothing needs pasting.
 ORPHEUS 1.7.0 - lock-screen style playback buttons; library backup and restore through your Google account (Google Drive).
 ORPHEUS 1.6.1 - player buttons restyled as Apple-style liquid glass.
 ORPHEUS 1.6.0 - Android and desktop Chrome/Edge: the installed app icon follows the icon chosen in Settings.
