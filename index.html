@@ -674,7 +674,7 @@ svg.tp path{stroke:currentColor;stroke-width:1.9;stroke-linejoin:round;stroke-li
 <script>
 (()=>{
 'use strict';
-const APP_VERSION='1.8.0';
+const APP_VERSION='1.8.1';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -2041,8 +2041,12 @@ function gSwitch(){try{localStorage.removeItem('orpheus-gtok');}catch(_){}gSignI
 function gStart(){if(gBusy){toast('Already syncing');return;}if(gToken())gRun();else gSignInRedirect();}
 async function gf(url,opt={}){
   const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+gToken()}});
-  if(r.status===401||r.status===403&&!(await r.clone().text()).includes('Quota')){try{localStorage.removeItem('orpheus-gtok');}catch(_){}throw new Error('Sign in again to continue');}
-  if(!r.ok)throw new Error('Google Drive said '+r.status);
+  if(r.status===401){try{localStorage.removeItem('orpheus-gtok');}catch(_){}throw new Error('Sign in again to continue');}
+  if(!r.ok){
+    let why='';try{const j=await r.clone().json();why=(j.error&&(j.error.message||(j.error.errors&&j.error.errors[0]&&j.error.errors[0].reason)))||'';}catch(_){}
+    if(r.status===403&&/accessNotConfigured|has not been used|disabled/i.test(why))why='the Google Drive API is not turned on for this project';
+    throw new Error('Google Drive '+r.status+(why?': '+String(why).slice(0,140):''));
+  }
   return r;
 }
 async function gList(){
@@ -2055,11 +2059,22 @@ async function gList(){
 }
 async function gUpload(name,blob,id){
   const type=blob.type||'application/octet-stream';
-  const init=await gf('https://www.googleapis.com/upload/drive/v3/files'+(id?'/'+id:'')+'?uploadType=resumable&fields=id',{method:id?'PATCH':'POST',headers:{'Content-Type':'application/json; charset=UTF-8','X-Upload-Content-Type':type},body:JSON.stringify(id?{}:{name,parents:['appDataFolder']})});
-  const loc=init.headers.get('Location');if(!loc)throw new Error('Upload could not start');
-  const r=await fetch(loc,{method:'PUT',headers:{'Content-Type':type},body:blob});
-  if(!r.ok)throw new Error('Upload failed ('+r.status+')');
-  return(await r.json()).id;
+  const meta=JSON.stringify(id?{}:{name,parents:['appDataFolder']});
+  let loc=null;
+  try{
+    const init=await gf('https://www.googleapis.com/upload/drive/v3/files'+(id?'/'+id:'')+'?uploadType=resumable&fields=id',{method:id?'PATCH':'POST',headers:{'Content-Type':'application/json; charset=UTF-8','X-Upload-Content-Type':type},body:meta});
+    loc=init.headers.get('Location');
+  }catch(e){if(/Sign in again|Google Drive 40[13]/.test(e.message))throw e;}
+  if(loc){
+    const r=await fetch(loc,{method:'PUT',headers:{'Content-Type':type},body:blob});
+    if(r.ok)return(await r.json()).id;
+    if(r.status===401)throw new Error('Sign in again to continue');
+  }
+  /* fallback: one-shot upload */
+  const bd='orpheus'+Math.random().toString(36).slice(2);
+  const body=new Blob(['--'+bd+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta+'\r\n--'+bd+'\r\nContent-Type: '+type+'\r\n\r\n',blob,'\r\n--'+bd+'--']);
+  const r2=await gf('https://www.googleapis.com/upload/drive/v3/files'+(id?'/'+id:'')+'?uploadType=multipart&fields=id',{method:id?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+bd},body});
+  return(await r2.json()).id;
 }
 const gDown=id=>gf('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media');
 async function gRun(){
