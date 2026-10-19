@@ -1,3 +1,5 @@
+ORPHEUS 1.8.2 - Profile picture choices are now generated covers, like your song covers.
+
 ORPHEUS 1.8.1 - clearer Google Drive errors and a backup upload fallback.
 ORPHEUS 1.8.0 - Profile tab (picture, name, Google sign-in); client ID built in so nothing needs pasting.
 ORPHEUS 1.7.0 - lock-screen style playback buttons; library backup and restore through your Google account (Google Drive).
