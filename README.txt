@@ -1,3 +1,5 @@
+ORPHEUS 1.9.0 - Animated blue/cyan/violet glow on the player bar and Now Playing. Android installed icon now refreshes after you pick a new one.
+
 ORPHEUS 1.8.2 - Profile picture choices are now generated covers, like your song covers.
 
 ORPHEUS 1.8.1 - clearer Google Drive errors and a backup upload fallback.

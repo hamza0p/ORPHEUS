@@ -1,7 +1,7 @@
 /* ORPHEUS service worker.
    The app opens from the saved copy, so it starts instantly and works with no connection.
    A new version downloads in the background and waits. Nothing changes until you tap Update. */
-const VERSION = '1.8.2';
+const VERSION = '1.9.0';
 const CACHE = 'orpheus-' + VERSION;
 const ICONS = 'orpheus-icons'; // the icon you picked in Settings; survives updates
 const FILES = ['./', 'index.html', 'covers.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
@@ -29,6 +29,8 @@ self.addEventListener('message', e => {
         const blob = await (await fetch(url)).blob();
         await c.put(new URL(name, self.registration.scope).href, new Response(blob, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' } }));
       }
+      // remember a version stamp so the manifest's icon links change whenever the icon does
+      await c.put(new URL('icon-version', self.registration.scope).href, new Response(String(Date.now())));
     }));
   }
 });
@@ -44,6 +46,18 @@ self.addEventListener('fetch', e => {
         .then(hit => hit || caches.match('./', { cacheName: CACHE }))
         .then(hit => hit || fetch(e.request))
     );
+    return;
+  }
+
+  // The manifest is rebuilt on the fly so its icon links change whenever you pick a new icon (this is what makes Android refresh the installed icon)
+  if (/\/manifest\.webmanifest$/.test(new URL(e.request.url).pathname)) {
+    e.respondWith((async () => {
+      const base = await (await caches.match('manifest.webmanifest', { cacheName: CACHE }) || await fetch(e.request)).json();
+      const vr = await caches.match(new URL('icon-version', self.registration.scope).href, { cacheName: ICONS });
+      const v = vr ? await vr.text() : '';
+      if (v) base.icons = base.icons.map(i => ({ ...i, src: i.src.split('?')[0] + '?v=' + v }));
+      return new Response(JSON.stringify(base), { headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'no-cache' } });
+    })());
     return;
   }
 
