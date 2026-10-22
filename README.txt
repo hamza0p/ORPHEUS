@@ -1,3 +1,11 @@
+ORPHEUS 1.9.4 - Tap or drag anywhere on the progress bar to jump to that part of the song.
+
+ORPHEUS 1.9.3 - Music keeps playing while other apps are open: if the phone pauses it on its own, ORPHEUS starts it again.
+
+ORPHEUS 1.9.2 - The default icon is now a blue disc (a "Blue" colour choice was added in Settings).
+
+ORPHEUS 1.9.1 - Now Playing is darker, like Apple Music, with the blue/cyan/violet glow moving behind it.
+
 ORPHEUS 1.9.0 - Animated blue/cyan/violet glow on the player bar and Now Playing. Android installed icon now refreshes after you pick a new one.
 
 ORPHEUS 1.8.2 - Profile picture choices are now generated covers, like your song covers.
