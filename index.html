@@ -597,6 +597,15 @@ body.is-playing #np .aur{opacity:1}
 #np::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(#0000 55%,#0008)}
 @media (prefers-reduced-motion:reduce){.aur i{animation:none}}
 body:not(.is-playing) .aur i{animation-play-state:paused}
+
+/* Now Playing fits exactly one screen; the cover shrinks to make room. The queue is below it (tap the list icon to jump there). */
+#np .np-main{display:flex;flex-direction:column;min-height:100%;flex:0 0 auto}
+#np .np-main>*{flex:none}
+#np .np-main{margin-bottom:64px}
+#np .np-main #npCover{flex:1 1 0;min-height:120px;width:100%;margin:0;container-type:size}
+#np .np-main #npCover .cover{width:min(92cqw,100cqh,380px);height:auto;max-width:none;max-height:none;aspect-ratio:1/1}
+#np #npQH{margin-top:14px}
+@media (max-height:700px){#np .seek{margin-top:12px}#np .npvol{margin-top:6px}}
 </style>
 </head>
 <body>
@@ -657,6 +666,7 @@ body:not(.is-playing) .aur i{animation-play-state:paused}
   <div id="npBg" aria-hidden="true"></div>
   <div class="aur" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   <div class="np-in">
+    <div class="np-main">
     <button class="np-grab" data-ctl="close" aria-label="Close player"><i></i></button>
     <div id="npCover"></div>
     <div class="np-title">
@@ -675,6 +685,7 @@ body:not(.is-playing) .aur i{animation-play-state:paused}
       <button class="icon" data-ctl="shuf" aria-label="Shuffle" data-ic="shuffle"></button>
       <button class="icon" data-ctl="rep" aria-label="Repeat" data-ic="repeat"></button>
       <button class="icon" data-ctl="queue" aria-label="Up next" data-ic="queue"></button>
+    </div>
     </div>
     <div><h2 id="npQH">Up next</h2><div id="npQueue"></div></div>
   </div>
@@ -700,7 +711,7 @@ body:not(.is-playing) .aur i{animation-play-state:paused}
 <script>
 (()=>{
 'use strict';
-const APP_VERSION='1.9.4';
+const APP_VERSION='1.9.5';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -1497,6 +1508,21 @@ function shuffleAction(s){
   else if(k==='ar'){const a=artistList[+v];playShuffled(tracks.filter(t=>t.artist===a).map(t=>t.id),1);}
 }
 
+
+/* Background playback: the next song is prepared ahead of time, so when one ends the next starts at once (a phone can freeze a background page during a silent gap) */
+let pre=null;
+async function preloadNext(){
+  try{
+    let ni=qi+1;if(ni>=queue.length){if(repeat===1&&!shuffleMode)ni=0;else return;}
+    const id=queue[ni],t=byId(id);if(!t||t.remote)return;
+    if(pre&&pre.id===id)return;
+    if(pre){URL.revokeObjectURL(pre.url);pre=null;}
+    const blob=await getBlob(id);if(!blob)return;
+    if(queue[qi+1]!==id&&!(qi+1>=queue.length&&queue[0]===id))return;
+    if(pre){URL.revokeObjectURL(pre.url);}
+    pre={id,url:URL.createObjectURL(blob)};
+  }catch(e){}
+}
 async function startCurrent(){
   const id=queue[qi],t=byId(id);if(!t)return;
   const tok=++playTok;curId=id;updateNow();markPlaying();
@@ -1506,6 +1532,13 @@ async function startCurrent(){
     curUrl=t.url;audio.src=t.url;audio.play().catch(()=>{});
     return;
   }
+  if(pre&&pre.id===id){
+    const u=pre.url;pre=null;
+    if(curUrl&&curUrl.startsWith('blob:'))URL.revokeObjectURL(curUrl);
+    curUrl=u;audio.src=u;audio.play().catch(()=>{});
+    setTimeout(preloadNext,1500);
+    return;
+  }
   let blob;try{blob=await getBlob(id);}catch(e){}
   if(tok!==playTok)return;
   if(!blob){toast('Could not load that song');return;}
@@ -1513,6 +1546,7 @@ async function startCurrent(){
   curUrl=URL.createObjectURL(blob);
   audio.src=curUrl;
   audio.play().catch(()=>{});
+  setTimeout(preloadNext,1500);
 }
 function next(auto){
   if(!queue.length)return;

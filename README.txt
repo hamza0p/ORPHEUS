@@ -1,3 +1,5 @@
+ORPHEUS 1.9.5 - Now Playing fits one screen (queue sits below it, tap the list icon). Next song is prepared ahead so background playback does not stop between songs.
+
 ORPHEUS 1.9.4 - Tap or drag anywhere on the progress bar to jump to that part of the song.
 
 ORPHEUS 1.9.3 - Music keeps playing while other apps are open: if the phone pauses it on its own, ORPHEUS starts it again.
