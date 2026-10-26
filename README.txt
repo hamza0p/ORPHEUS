@@ -1,3 +1,5 @@
+ORPHEUS 1.9.6 - Tracks page restyled as a clean list, 8 new "glow" themes, and "Your photo" as an app icon choice.
+
 ORPHEUS 1.9.5 - Now Playing fits one screen (queue sits below it, tap the list icon). Next song is prepared ahead so background playback does not stop between songs.
 
 ORPHEUS 1.9.4 - Tap or drag anywhere on the progress bar to jump to that part of the song.

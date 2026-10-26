@@ -1,7 +1,7 @@
 /* ORPHEUS service worker.
    The app opens from the saved copy, so it starts instantly and works with no connection.
    A new version downloads in the background and waits. Nothing changes until you tap Update. */
-const VERSION = '1.9.5';
+const VERSION = '1.9.6';
 const CACHE = 'orpheus-' + VERSION;
 const ICONS = 'orpheus-icons'; // the icon you picked in Settings; survives updates
 const FILES = ['./', 'index.html', 'covers.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
