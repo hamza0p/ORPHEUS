@@ -1,3 +1,9 @@
+ORPHEUS 1.9.8 - Search tab removed from the bottom bar (Search is still in the side menu).
+
+ORPHEUS 1.9.7 - "Nothing playing" bar hidden until you play a song; shuffle options are back on the Tracks page.
+
+ORPHEUS 1.9.7 - The "Nothing playing" bar is hidden until you play a song.
+
 ORPHEUS 1.9.6 - Tracks page restyled as a clean list, 8 new "glow" themes, and "Your photo" as an app icon choice.
 
 ORPHEUS 1.9.5 - Now Playing fits one screen (queue sits below it, tap the list icon). Next song is prepared ahead so background playback does not stop between songs.
