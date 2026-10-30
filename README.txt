@@ -1,3 +1,5 @@
+ORPHEUS 1.9.10 - Artists are grouped properly: "A & B", "A, B", "A x B", "A feat. B" and "(feat. B)" in a title all go under each artist, and every artist appears once.
+
 ORPHEUS 1.9.9 - Each artist appears once. "feat." artists get their own page with Songs and Featured sections.
 
 ORPHEUS 1.9.8 - Search tab removed from the bottom bar (Search is still in the side menu).

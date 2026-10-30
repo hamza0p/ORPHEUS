@@ -743,7 +743,7 @@ body:not(.is-playing) .aur i{animation-play-state:paused}
 <script>
 (()=>{
 'use strict';
-const APP_VERSION='1.9.9';
+const APP_VERSION='1.9.10';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -1123,20 +1123,35 @@ function vPlaylist(){
 }
 
 /* ---------- artists: every artist becomes a page, like a playlist ---------- */
-const normA=a=>(a||'').trim().toLowerCase();
-/* One entry per artist. "Song feat. Other" is filed under the main artist and also listed under the featured artist's "Featured" section. */
+const normA=a=>(a||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+/* Real band names that contain "&", "and" or a comma are kept whole */
+const KEEP_WHOLE=['earth, wind & fire','earth wind & fire','earth, wind and fire','simon & garfunkel','simon and garfunkel','hall & oates','daryl hall & john oates','florence and the machine','florence + the machine','florence & the machine','tyler, the creator','ac/dc','crosby, stills & nash','crosby, stills, nash & young','blood, sweat & tears','peter, paul and mary','kool & the gang','mumford & sons','brooks & dunn','years & years','of monsters and men','coheed and cambria','marina and the diamonds','echo & the bunnymen','katrina and the waves','hootie & the blowfish','bob marley & the wailers','prince and the revolution','tom petty and the heartbreakers','sly & the family stone','gladys knight & the pips','ike & tina turner','sonny & cher','big & rich','guns n\' roses','guns n roses',', the ','the mamas & the papas','the mamas and the papas','mc & the','belle & sebastian','matt and kim','angus & julia stone','she & him','lord huron & the','p!nk','salt-n-pepa','run-d.m.c.','dead & company','brand new heavies','jay-z & kanye west','nipsey hussle & '].filter(x=>!x.startsWith(',')&&!x.endsWith(' ')&&!x.endsWith('&')&&x!=='mc & the'&&x!=='lord huron & the'&&x!=='jay-z & kanye west');
+const SPLIT_RE=/\s*(?:;|\s\/\s|,|\s+(?:feat\.?|ft\.?|featuring|with|vs\.?|x|×|&|\+|and)\s+)\s*/i;
+function artistNames(t){
+  let raw=(t.artist||'').replace(/[()\[\]]/g,' ').replace(/\s+/g,' ').trim();
+  let names;
+  if(!raw)names=['Unknown artist'];
+  else if(KEEP_WHOLE.includes(normA(raw)))names=[raw];
+  else{
+    /* protect any band name written inside a longer credit, then split */
+    const keep=[];let r=raw;
+    for(const k of KEEP_WHOLE){const i=normA(r).indexOf(k);if(i>=0&&k.length>6){const m=r.match(new RegExp(k.replace(/[.*+?^${}()|[\]\\\/]/g,'\\$&'),'i'));if(m){keep.push(m[0]);r=r.replace(m[0],'\u0001'+(keep.length-1)+'\u0001');}}}
+    names=r.split(SPLIT_RE).map(x=>x.trim()).filter(Boolean).map(x=>x.replace(/\u0001(\d+)\u0001/g,(_,i)=>keep[+i]));
+    if(!names.length)names=[raw];
+  }
+  /* "Title (feat. Someone)" also counts as a featured artist */
+  const ft=(t.title||'').match(/[(\[]\s*(?:feat\.?|ft\.?|featuring|with)\s+([^)\]]+)[)\]]/i);
+  if(ft)for(const x of ft[1].split(SPLIT_RE).map(x=>x.trim()).filter(Boolean))names.push(x);
+  return names;
+}
+/* One entry per artist. The first name on a song is the main artist; everyone else on it gets the song under "Featured". */
 function artistGroups(){
   const m=new Map();
-  const get=(key,name)=>{let a=m.get(key);if(!a){a={key,name,tracks:[],features:[]};m.set(key,a);}return a;};
+  const get=(name)=>{const key=normA(name)||'unknown artist';let a=m.get(key);if(!a){a={key,name,tracks:[],features:[]};m.set(key,a);}return a;};
   for(const t of tracks){
-    const raw=((t.artist||'').replace(/[()\[\]]/g,' ').replace(/\s+/g,' ').trim())||'Unknown artist';
-    const parts=raw.split(/\s+(?:feat\.?|ft\.?|featuring)\s+/i);
-    const mainName=(parts[0]||'').trim()||'Unknown artist';
-    get(normA(mainName)||'unknown artist',mainName).tracks.push(t);
-    for(const fn of parts.slice(1).map(x=>x.trim()).filter(Boolean)){
-      const a=get(normA(fn),fn);
-      if(!a.features.includes(t)&&!a.tracks.includes(t))a.features.push(t);
-    }
+    const names=artistNames(t);
+    get(names[0]).tracks.push(t);
+    for(const fn of names.slice(1)){const a=get(fn);if(!a.features.includes(t)&&!a.tracks.includes(t))a.features.push(t);}
   }
   return [...m.values()].sort((x,y)=>x.name.localeCompare(y.name,undefined,{sensitivity:'base'}));
 }
