@@ -1,3 +1,5 @@
+ORPHEUS 1.9.9 - Each artist appears once. "feat." artists get their own page with Songs and Featured sections.
+
 ORPHEUS 1.9.8 - Search tab removed from the bottom bar (Search is still in the side menu).
 
 ORPHEUS 1.9.7 - "Nothing playing" bar hidden until you play a song; shuffle options are back on the Tracks page.

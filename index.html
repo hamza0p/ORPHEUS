@@ -743,7 +743,7 @@ body:not(.is-playing) .aur i{animation-play-state:paused}
 <script>
 (()=>{
 'use strict';
-const APP_VERSION='1.9.8';
+const APP_VERSION='1.9.9';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -1039,6 +1039,7 @@ const ROWS_FIRST=30;
 function rowHtml(list,a,b){
   let h='';
   for(let i=a;i<b;i++){const t=list[i];
+    if(list.featFrom===i)h+='<h2 class="sub">Featured</h2>';
     h+=`<div class="row${t.id===curId?' cur':''}" data-i="${i}" data-id="${t.id}" role="listitem" tabindex="0">
     <div class="idx"><span class="n">${i+1}</span><span class="pl">${ic('play')}</span><span class="eq"><i></i><i></i><i></i></span></div>
     ${cover(t,'sm')}
@@ -1123,16 +1124,23 @@ function vPlaylist(){
 
 /* ---------- artists: every artist becomes a page, like a playlist ---------- */
 const normA=a=>(a||'').trim().toLowerCase();
+/* One entry per artist. "Song feat. Other" is filed under the main artist and also listed under the featured artist's "Featured" section. */
 function artistGroups(){
   const m=new Map();
+  const get=(key,name)=>{let a=m.get(key);if(!a){a={key,name,tracks:[],features:[]};m.set(key,a);}return a;};
   for(const t of tracks){
-    const k=normA(t.artist)||'unknown artist';
-    let a=m.get(k);if(!a){a={key:k,name:(t.artist||'').trim()||'Unknown artist',tracks:[]};m.set(k,a);}
-    a.tracks.push(t);
+    const raw=((t.artist||'').replace(/[()\[\]]/g,' ').replace(/\s+/g,' ').trim())||'Unknown artist';
+    const parts=raw.split(/\s+(?:feat\.?|ft\.?|featuring)\s+/i);
+    const mainName=(parts[0]||'').trim()||'Unknown artist';
+    get(normA(mainName)||'unknown artist',mainName).tracks.push(t);
+    for(const fn of parts.slice(1).map(x=>x.trim()).filter(Boolean)){
+      const a=get(normA(fn),fn);
+      if(!a.features.includes(t)&&!a.tracks.includes(t))a.features.push(t);
+    }
   }
   return [...m.values()].sort((x,y)=>x.name.localeCompare(y.name,undefined,{sensitivity:'base'}));
 }
-const artistCover=a=>cover(a.tracks.find(x=>x.art)||a.tracks[0],'artav');
+const artistCover=a=>{const all=a.tracks.concat(a.features||[]);return cover(all.find(x=>x.art)||all[0],'artav');};
 const CHEV_L='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function vArtists(){
   if(!tracks.length)return emptyState();
@@ -1140,19 +1148,22 @@ function vArtists(){
   for(const a of g){
     const c=(a.name.normalize('NFD')[0]||'#').toUpperCase(),L=/[A-Z]/.test(c)?c:'#';
     if(L!==last){h+=`<div class="alpha">${L}</div>`;last=L;}
-    h+=`<button class="arow" data-go="artist" data-id="${esc(a.key)}">${artistCover(a)}<span class="meta"><b>${esc(a.name)}</b><small>${a.tracks.length} ${a.tracks.length===1?'song':'songs'}</small></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    h+=`<button class="arow" data-go="artist" data-id="${esc(a.key)}">${artistCover(a)}<span class="meta"><b>${esc(a.name)}</b><small>${a.tracks.length+a.features.length} ${a.tracks.length+a.features.length===1?'song':'songs'}</small></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
   }
   return `<div class="sec-h"><h1>Artists <span class="count">${g.length}</span></h1></div><div class="alist">${h}</div>`;
 }
 function vArtist(){
   const a=artistGroups().find(x=>x.key===view.id);
   if(!a)return `<button class="back" data-go="artists">${CHEV_L}Artists</button><p class="muted pad">That artist is not in your library any more.</p>`;
-  const list=a.tracks.slice().sort((x,y)=>(x.album||'').localeCompare(y.album||'',undefined,{sensitivity:'base'})||x.title.localeCompare(y.title,undefined,{sensitivity:'base'}));
-  const total=list.reduce((s,t)=>s+(t.duration||0),0);
+  const byAlbum=(x,y)=>(x.album||'').localeCompare(y.album||'',undefined,{sensitivity:'base'})||x.title.localeCompare(y.title,undefined,{sensitivity:'base'});
+  const songs=a.tracks.slice().sort(byAlbum),feat=a.features.slice().sort(byAlbum);
+  /* one list so play, shuffle and long-list loading all work; the "Featured" heading is placed inside it */
+  const all=songs.concat(feat);all.featFrom=feat.length?songs.length:-1;
+  const n=all.length,total=all.reduce((s,t)=>s+(t.duration||0),0);
   return `<button class="back" data-go="artists">${CHEV_L}Artists</button>
-  <div class="head"><div class="big">${artistCover(a)}</div><div><div class="eyebrow">Artist</div><h1>${esc(a.name)}</h1><div class="muted">${list.length} ${list.length===1?'song':'songs'}${total?' · '+fmtLong(total):''}</div></div></div>
+  <div class="head"><div class="big">${artistCover(a)}</div><div><div class="eyebrow">Artist</div><h1>${esc(a.name)}</h1><div class="muted">${n} ${n===1?'song':'songs'}${total?' · '+fmtLong(total):''}</div></div></div>
   <div class="actions"><button class="fab" data-act="playAll" aria-label="Play">${ic('play')}</button><span class="split"><button class="ghost" data-act="shufflePl">${ic('shuffle')} Shuffle</button><button class="ghost" data-act="shufMenu" data-ctx="list" aria-label="Shuffle options">${ic('down')}</button></span></div>
-  ${rows(list)}`;
+  ${songs.length&&feat.length?'<h2 class="sub">Songs</h2>':''}${rows(all)}`;
 }
 /* ---------- themes & settings ---------- */
 const THEMES=[
@@ -1529,11 +1540,9 @@ function openShuffleMenu(anchor,ctx){
     const pls=playlists.filter(p=>p.ids.some(byId));
     if(pls.length)h+='<div class="sep"></div><div class="lbl">Playlists</div>'+pls.map(p=>`<button data-s="pl:${p.id}">${esc(p.name)}</button>`).join('');
     if(all){
-      const cnt=new Map();
-      tracks.forEach(t=>{const a=t.artist||'';if(a&&!/^unknown artist$/i.test(a))cnt.set(a,(cnt.get(a)||0)+1);});
-      const top=[...cnt].filter(x=>x[1]>=2).sort((x,y)=>y[1]-x[1]).slice(0,8);
+      const top=artistGroups().filter(g=>!/^unknown artist$/i.test(g.name)).map(g=>[g.key,g.name,g.tracks.length+g.features.length]).filter(x=>x[2]>=2).sort((x,y)=>y[2]-x[2]).slice(0,8);
       artistList=top.map(x=>x[0]);
-      if(top.length)h+='<div class="sep"></div><div class="lbl">Artists</div>'+top.map((x,i)=>`<button data-s="ar:${i}">${esc(x[0])} · ${x[1]}</button>`).join('');
+      if(top.length)h+='<div class="sep"></div><div class="lbl">Artists</div>'+top.map((x,i)=>`<button data-s="ar:${i}">${esc(x[1])} · ${x[2]}</button>`).join('');
     }
   }
   m.innerHTML=h;m.hidden=false;
@@ -1552,7 +1561,7 @@ function shuffleAction(s){
   else if(k==='new50')playShuffled(sortedAll().slice(0,50).map(t=>t.id),1);
   else if(k==='rand25')playShuffled(shuffleArr(tracks.map(t=>t.id)).slice(0,25),1);
   else if(k==='pl'){const p=playlists.find(x=>x.id===v);if(p)playShuffled(p.ids,pm);}
-  else if(k==='ar'){const a=artistList[+v];playShuffled(tracks.filter(t=>t.artist===a).map(t=>t.id),1);}
+  else if(k==='ar'){const g=artistGroups().find(x=>x.key===artistList[+v]);if(g)playShuffled(g.tracks.concat(g.features).map(t=>t.id),1);}
 }
 
 
